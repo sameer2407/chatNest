@@ -1,47 +1,59 @@
-import { AuthOptions, ISODateString } from "next-auth";
+import { Account, AuthOptions, ISODateString } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import { JWT } from "next-auth/jwt";
+import axios from "axios";
+import { LOGIN_URL } from "@/lib/apiEndpoints";
 
 export interface CustomSession {
-  user?:CustomUser;
-  expires:ISODateString
+  user?: CustomUser;
+  expires: ISODateString
 }
 
-export interface CustomUser{
-  id?:string|null;
-  name?:string|null;
-  email?:string|null;
-  image?:string|null;
-  provider?:string|null;
-  token?:string|null;
+export interface CustomUser {
+  id?: string | null;
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+  provider?: string | null;
+  token?: string | null;
 }
 
-export const authOption:AuthOptions={
-  pages:{
-    signIn:"/"
+export const authOption: AuthOptions = {
+  pages: {
+    signIn: "/"
   },
-  callbacks:{
+  callbacks: {
 
     //make signIn
 
-    async signIn({ user, account, profile, email, credentials }) {
-      console.log("userdata is",user)
-
+    async signIn({ user, account }: { user: CustomUser, account: Account | null }) {
+      console.log("userdata is", user)
+      const payload = {
+        email: user?.email,
+        name: user?.name,
+        oauth_id: account?.providerAccountId,
+        provider: account?.provider,
+        image: user?.image
+      }
+      const { data } = await axios.post(LOGIN_URL, payload)
+      user.id = data?.user?.id.toString()
+      user.token = data?.token
+      user.provider = data?.user?.provider
       return true;
     },
-    async session({ session, user, token }:{session:CustomSession,user:CustomUser,token:JWT}) {
+    async session({ session, user, token }: { session: CustomSession, user: CustomUser, token: JWT }) {
       return session
     },
     async jwt({ token, user }) {
-      if(user){
-        token.user=user
+      if (user) {
+        token.user = user
       }
       return token
     }
   },
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID !,
+      clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
       authorization: {
         params: {
